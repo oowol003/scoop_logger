@@ -180,8 +180,31 @@ export function ActivityProvider({ children }) {
       }
       
       // Remove any client-side generated IDs from updates
-      const { id: _, ...cleanUpdates } = updates;
-      
+      const { id: _, ...dirtyUpdates } = updates;
+
+      // Clean up the updates object to remove any empty values recursively
+      const cleanObject = (obj) => {
+        return Object.entries(obj).reduce((acc, [key, value]) => {
+          if (value === null || value === undefined || value === '') {
+            return acc;
+          }
+          
+          if (typeof value === 'object' && !Array.isArray(value)) {
+            const cleaned = cleanObject(value);
+            if (Object.keys(cleaned).length > 0) {
+              acc[key] = cleaned;
+            }
+          } else {
+            acc[key] = value;
+          }
+          
+          return acc;
+        }, {});
+      };
+
+      const cleanUpdates = cleanObject(dirtyUpdates);
+      console.log('Clean updates:', cleanUpdates);
+
       await updateDoc(activityRef, cleanUpdates);
       console.log('Activity updated successfully');
     } catch (err) {

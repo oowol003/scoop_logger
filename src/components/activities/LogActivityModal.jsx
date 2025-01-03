@@ -358,28 +358,23 @@ const LogActivityModal = ({ activity, date, onClose, onSubmit }) => {
   };
 
   const handleSubmit = () => {
-    // Validate all required fields
-    const newErrors = {};
-    metrics.forEach(metric => {
-      if (metric.required && !values[metric.name]) {
-        newErrors[metric.name] = 'This field is required';
-      }
-    });
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    // Clean up the values object to remove any empty or undefined values
-    const cleanValues = Object.entries(values).reduce((acc, [key, value]) => {
+    // Clean up metric values - remove any empty, null, or undefined values
+    const cleanMetricValues = Object.entries(values).reduce((acc, [key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         acc[key] = value;
       }
       return acc;
     }, {});
 
-    onSubmit(cleanValues);
+    // Only submit if we have valid metrics
+    if (Object.keys(cleanMetricValues).length > 0) {
+      onSubmit(cleanMetricValues);
+      onClose();
+    } else {
+      // If no metrics, just mark as completed
+      onSubmit({ completed: true });
+      onClose();
+    }
   };
 
   const handleSkip = () => {

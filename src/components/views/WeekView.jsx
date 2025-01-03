@@ -81,15 +81,26 @@ const WeekView = ({ currentDate }) => {
 
     const dateKey = format(loggingDate, 'yyyy-MM-dd');
     try {
-      // Create a clean entry object without any empty values
+      // Create a clean entry object
       const entry = {
         completed: true,
         timestamp: new Date().toISOString()
       };
 
-      // Only add metrics if there are valid values
-      if (Object.keys(metricValues).length > 0) {
-        entry.metrics = metricValues;
+      // Only add metrics if there are valid values and they're not empty
+      if (metricValues && Object.keys(metricValues).length > 0) {
+        // Clean up metric values to remove any empty values
+        const cleanMetrics = Object.entries(metricValues).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
+
+        // Only add metrics if we have clean values
+        if (Object.keys(cleanMetrics).length > 0) {
+          entry.metrics = cleanMetrics;
+        }
       }
 
       // Get current entries or initialize empty object
