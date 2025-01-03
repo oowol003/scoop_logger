@@ -8,12 +8,14 @@ import {
   deleteDoc, 
   doc, 
   query, 
-  orderBy 
+  orderBy,
+  onSnapshot 
 } from 'firebase/firestore';
 
 const ActivityContext = createContext();
 
 function activityReducer(state, action) {
+  console.log('Reducer action:', action.type, action.payload);
   switch (action.type) {
     case 'SET_LOGS':
       return {
@@ -72,133 +74,144 @@ export function ActivityProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch activities from Firebase
+  // Real-time listener for activities
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const activitiesRef = collection(db, 'activities');
-        const q = query(activitiesRef, orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        
-        const activities = querySnapshot.docs.map(doc => ({
+    console.log('Setting up activities listener...');
+    try {
+      const activitiesRef = collection(db, 'activities');
+      const q = query(activitiesRef, orderBy('createdAt', 'desc'));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log('Activities snapshot received:', snapshot.size, 'documents');
+        const activities = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
+        console.log('Processed activities:', activities);
         dispatch({ type: 'SET_ACTIVITIES', payload: activities });
         setLoading(false);
-      } catch (err) {
-        console.error('Error fetching activities:', err);
-        setError(err.message);
+      }, (error) => {
+        console.error('Error in activities listener:', error);
+        setError(error.message);
         setLoading(false);
-      }
-    };
+      });
 
-    fetchActivities();
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error setting up activities listener:', err);
+      setError(err.message);
+      setLoading(false);
+    }
   }, []);
 
-  // Fetch logs from Firebase
+  // Real-time listener for logs
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const logsRef = collection(db, 'logs');
-        const q = query(logsRef, orderBy('timestamp', 'desc'));
-        const querySnapshot = await getDocs(q);
-        
-        const logs = querySnapshot.docs.map(doc => ({
+    console.log('Setting up logs listener...');
+    try {
+      const logsRef = collection(db, 'logs');
+      const q = query(logsRef, orderBy('timestamp', 'desc'));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log('Logs snapshot received:', snapshot.size, 'documents');
+        const logs = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        
+        console.log('Processed logs:', logs);
         dispatch({ type: 'SET_LOGS', payload: logs });
-      } catch (err) {
-        console.error('Error fetching logs:', err);
-        setError(err.message);
-      }
-    };
+      }, (error) => {
+        console.error('Error in logs listener:', error);
+        setError(error.message);
+      });
 
-    fetchLogs();
+      return () => unsubscribe();
+    } catch (err) {
+      console.error('Error setting up logs listener:', err);
+      setError(err.message);
+    }
   }, []);
 
   const addActivity = async (activity) => {
+    console.log('Adding activity:', activity);
     try {
       const activitiesRef = collection(db, 'activities');
       const docRef = await addDoc(activitiesRef, {
         ...activity,
         createdAt: new Date().toISOString()
       });
+      console.log('Activity added successfully with ID:', docRef.id);
       
-      dispatch({
-        type: 'ADD_ACTIVITY',
-        payload: { id: docRef.id, ...activity }
-      });
+      // Note: We don't need to dispatch here as the onSnapshot listener will handle it
     } catch (err) {
       console.error('Error adding activity:', err);
       setError(err.message);
+      throw err; // Re-throw to handle in the UI
     }
   };
 
   const updateActivity = async (id, updates) => {
+    console.log('Updating activity:', id, updates);
     try {
       const activityRef = doc(db, 'activities', id);
       await updateDoc(activityRef, updates);
+      console.log('Activity updated successfully');
       
-      dispatch({
-        type: 'UPDATE_ACTIVITY',
-        payload: { id, ...updates }
-      });
+      // Note: We don't need to dispatch here as the onSnapshot listener will handle it
     } catch (err) {
       console.error('Error updating activity:', err);
       setError(err.message);
+      throw err;
     }
   };
 
   const deleteActivity = async (id) => {
+    console.log('Deleting activity:', id);
     try {
       const activityRef = doc(db, 'activities', id);
       await deleteDoc(activityRef);
+      console.log('Activity deleted successfully');
       
-      dispatch({
-        type: 'DELETE_ACTIVITY',
-        payload: id
-      });
+      // Note: We don't need to dispatch here as the onSnapshot listener will handle it
     } catch (err) {
       console.error('Error deleting activity:', err);
       setError(err.message);
+      throw err;
     }
   };
 
   const addLog = async (log) => {
+    console.log('Adding log:', log);
     try {
       const logsRef = collection(db, 'logs');
       const docRef = await addDoc(logsRef, {
         ...log,
         timestamp: new Date().toISOString()
       });
+      console.log('Log added successfully with ID:', docRef.id);
       
-      dispatch({
-        type: 'ADD_LOG',
-        payload: { id: docRef.id, ...log }
-      });
+      // Note: We don't need to dispatch here as the onSnapshot listener will handle it
     } catch (err) {
       console.error('Error adding log:', err);
       setError(err.message);
+      throw err;
     }
   };
 
+  const contextValue = {
+    activities: state.activities,
+    logs: state.logs,
+    loading,
+    error,
+    addActivity,
+    updateActivity,
+    deleteActivity,
+    addLog
+  };
+
+  console.log('Current context value:', contextValue);
+
   return (
-    <ActivityContext.Provider
-      value={{
-        activities: state.activities,
-        logs: state.logs,
-        loading,
-        error,
-        addActivity,
-        updateActivity,
-        deleteActivity,
-        addLog
-      }}
-    >
+    <ActivityContext.Provider value={contextValue}>
       {children}
     </ActivityContext.Provider>
   );
