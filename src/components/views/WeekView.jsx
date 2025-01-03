@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { format, startOfWeek, addDays, isSameDay, subDays, addWeeks, subWeeks, isToday } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, subDays, addWeeks, subWeeks, isToday, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { useActivities } from '../../context/ActivityContext';
 import { useViewOptions } from '../../context/ViewOptionsContext';
 import {
@@ -161,141 +161,86 @@ const WeekView = ({ currentDate }) => {
   }
 
   return (
-    <div className={`space-y-4 mb-16 ${viewOptions.gridDensity === 'compact' ? 'space-y-2' : 'space-y-4'}`}>
-      {/* Week Header */}
-      <div className="grid grid-cols-7 gap-1">
-        {weekDays.map((day, index) => (
-          <div key={index} className="text-center">
-            <div className="text-xs text-gray-500">
-              {dayLabels[index]}
+    <div className="overflow-hidden">
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 border-b">
+        <button
+          onClick={() => navigateWeek('prev')}
+          className="p-2 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="text-sm font-medium">
+          {format(startOfWeek(currentDate), 'MMM d')} - {format(endOfWeek(currentDate), 'MMM d, yyyy')}
+        </span>
+        <button
+          onClick={() => navigateWeek('next')}
+          className="p-2 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Week Grid */}
+      <div className="grid grid-cols-7 text-sm">
+        {/* Day Headers */}
+        {eachDayOfInterval({
+          start: startOfWeek(currentDate),
+          end: endOfWeek(currentDate)
+        }).map((date) => (
+          <div
+            key={date.toISOString()}
+            className="p-2 text-center border-b font-medium bg-gray-50"
+          >
+            <span className="hidden sm:inline">{format(date, 'EEE')}</span>
+            <span className="sm:hidden">{format(date, 'EEEEE')}</span>
+          </div>
+        ))}
+
+        {/* Activity Grid */}
+        {eachDayOfInterval({
+          start: startOfWeek(currentDate),
+          end: endOfWeek(currentDate)
+        }).map((date) => (
+          <div
+            key={date.toISOString()}
+            className="min-h-[100px] p-2 border-b border-r last:border-r-0"
+          >
+            <div className="text-xs text-gray-500 mb-2">
+              {format(date, 'd')}
             </div>
-            <div className={`
-              text-sm
-              ${isToday(day)
-                ? 'text-orange-600 font-medium'
-                : 'text-gray-700'}
-            `}>
-              {format(day, 'd')}
+            <div className="space-y-1">
+              {Object.values(activities).map((activity) => (
+                <button
+                  key={activity.id}
+                  onClick={() => toggleCompletion(activity.id, date)}
+                  className={`
+                    aspect-square rounded-lg font-mono text-sm
+                    flex items-center justify-center transition-all
+                    hover:opacity-80
+                  `}
+                  style={{ backgroundColor: getActivityStatus(activity.id, date) ? activity.color || '#E5E7EB' : '#E5E7EB' }}
+                >
+                  {getActivityStatus(activity.id, date) && <Check className="w-4 h-4 text-white" />}
+                </button>
+              ))}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Activity Grid */}
-      <div className="space-y-4">
-        {Object.entries(activities).map(([activityId, activity]) => {
-          const weekCompletion = getWeekCompletion(activityId);
-          const streak = getActivityStreak(activityId);
-          
-          return (
-            <div key={activityId} className="flex flex-col">
-              {/* Enhanced Activity Header */}
-              <div className="flex justify-between items-center mb-2 group">
-                <div 
-                  className="flex items-center space-x-4 cursor-pointer"
-                  onClick={() => setSelectedActivity({...activity, id: activityId})}
-                >
-                  <span className="font-mono">{activity.name}</span>
-                  
-                  {/* Week Progress */}
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1">
-                      <div className="h-1.5 w-16 bg-gray-200 rounded overflow-hidden">
-                        <div
-                          className="h-full transition-all duration-300"
-                          style={{ width: `${weekCompletion}%`, backgroundColor: activity.color }}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-500 font-mono">
-                        {weekCompletion}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Streak Indicator */}
-                  {streak > 0 && (
-                    <div className="flex items-center space-x-1 px-2 py-0.5 bg-orange-50 rounded-full">
-                      <Flame className="w-4 h-4 text-orange-500" />
-                      <span className="text-xs text-orange-600 font-medium">
-                        {streak}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Optional: Add hover effect for more details */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-sm text-gray-500">
-                  Click for details
-                </div>
-              </div>
-
-              {/* Week Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {weekDays.map((day) => {
-                  const isCompleted = getActivityStatus(activityId, day);
-                  const activityColor = activity.color || '#E5E7EB'; // Default to gray if no color is set
-                  
-                  return (
-                    <button
-                      key={`${activityId}-${day}`}
-                      onClick={() => toggleCompletion(activityId, day)}
-                      className={`
-                        aspect-square rounded-lg font-mono text-sm
-                        flex items-center justify-center transition-all
-                        hover:opacity-80
-                      `}
-                      style={{ backgroundColor: isCompleted ? activityColor : '#E5E7EB' }}
-                    >
-                      {isCompleted && <Check className="w-4 h-4 text-white" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <AnimatePresence>
-        {selectedActivity && (
-          <ActivityDetails 
-            activity={selectedActivity} 
-            onClose={() => setSelectedActivity(null)}
-            onDelete={() => {
-              setDeleteConfirm(selectedActivity);
-              setSelectedActivity(null);
-            }}
-          />
-        )}
-        {deleteConfirm && (
-          <DeleteConfirmModal
-            activity={deleteConfirm}
-            onConfirm={async () => {
-              try {
-                await deleteActivity(deleteConfirm.id);
-                setDeleteConfirm(null);
-              } catch (error) {
-                console.error('Error deleting activity:', error);
-              }
-            }}
-            onCancel={() => setDeleteConfirm(null)}
-          />
-        )}
-        {showAddModal && (
-          <AddActivityModal onClose={() => setShowAddModal(false)} />
-        )}
-        {loggingActivity && (
-          <LogActivityModal
-            activity={loggingActivity}
-            date={loggingDate}
-            onClose={() => {
-              setLoggingActivity(null);
-              setLoggingDate(null);
-            }}
-            onSubmit={handleLogActivity}
-          />
-        )}
-      </AnimatePresence>
+      {/* Activity Log Modal */}
+      {loggingActivity && loggingDate && (
+        <LogActivityModal
+          activity={loggingActivity}
+          date={loggingDate}
+          onClose={() => {
+            setLoggingActivity(null);
+            setLoggingDate(null);
+          }}
+          onSubmit={handleLogActivity}
+        />
+      )}
     </div>
   );
 };

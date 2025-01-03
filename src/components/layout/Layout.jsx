@@ -28,6 +28,7 @@ export const Layout = ({
   onOpenSettings
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showAddActivity, setShowAddActivity] = useState(false);
 
   const getDateDisplay = () => {
     switch (currentView) {
@@ -63,7 +64,7 @@ export const Layout = ({
   };
 
   return (
-    <div className="min-h-screen bg-background text-text">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
@@ -137,61 +138,49 @@ export const Layout = ({
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {children}
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 z-30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-4 divide-x divide-gray-100">
-            <button
-              onClick={() => onViewChange('day')}
-              className={`p-2 sm:p-3 flex flex-col items-center touch-manipulation ${
-                currentView === 'day'
-                  ? 'text-orange-600 bg-orange-50'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="text-xs mt-1">Day</span>
-            </button>
-            <button
-              onClick={() => onViewChange('week')}
-              className={`p-2 sm:p-3 flex flex-col items-center touch-manipulation ${
-                currentView === 'week'
-                  ? 'text-orange-600 bg-orange-50'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="text-xs mt-1">Week</span>
-            </button>
-            <button
-              onClick={() => onViewChange('month')}
-              className={`p-2 sm:p-3 flex flex-col items-center touch-manipulation ${
-                currentView === 'month'
-                  ? 'text-orange-600 bg-orange-50'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <CalendarRange className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="text-xs mt-1">Month</span>
-            </button>
-            <button
-              onClick={() => onViewChange('year')}
-              className={`p-2 sm:p-3 flex flex-col items-center touch-manipulation ${
-                currentView === 'year'
-                  ? 'text-orange-600 bg-orange-50'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <CalendarCheck2 className="w-5 h-5 sm:w-6 sm:h-6" />
-              <span className="text-xs mt-1">Year</span>
-            </button>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-safe">
+        {/* View Options */}
+        <div className="mb-4 flex justify-between items-center">
+          <div className="flex space-x-2 overflow-x-auto pb-2 -mx-2 px-2 hide-scrollbar">
+            {Object.entries(useViewOptions()).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => onViewChange(key)}
+                className={`
+                  px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                  transition-all duration-200 flex-shrink-0
+                  ${currentView === key
+                    ? 'bg-orange-100 text-orange-700 shadow-sm'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }
+                `}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
-      </nav>
+
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {children}
+        </div>
+      </main>
+
+      {/* Add Activity Button - Fixed to bottom */}
+      <div className="fixed bottom-0 right-0 p-4 pb-safe">
+        <button
+          onClick={() => setShowAddActivity(true)}
+          className="bg-orange-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-orange-700 transition-colors"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Modals */}
+      {showAddActivity && (
+        <AddActivityModal onClose={() => setShowAddActivity(false)} />
+      )}
     </div>
   );
 };

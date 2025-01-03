@@ -36,6 +36,53 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Safe area padding for iPhone notch */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Prevent text selection */
+.no-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Better touch targets for mobile */
 .touch-manipulation {
   touch-action: manipulation;
+}
+
+/* Momentum scrolling for iOS */
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS button hover state */
+@media (hover: none) {
+  .hover\:bg-orange-700:hover {
+    background-color: inherit;
+  }
+}
+
+/* Fix for iOS 100vh issue */
+.min-h-screen {
+  min-height: -webkit-fill-available;
 }
