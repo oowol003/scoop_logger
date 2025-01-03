@@ -33,6 +33,8 @@ const AddActivityModal = ({ onClose }) => {
       timePerSession: 30
     }
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   // Get random color palette
   const getRandomPalette = () => {
@@ -97,15 +99,31 @@ const AddActivityModal = ({ onClose }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addActivity({
-      ...formData,
-      id: `activity-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      entries: {}
-    });
-    onClose();
+    setIsSubmitting(true);
+
+    try {
+      const newActivity = {
+        template: formData.template,
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        color: formData.color,
+        metrics: formData.metrics,
+        goal: formData.goal,
+        entries: {}
+      };
+
+      const firebaseId = await addActivity(newActivity);
+      console.log('Activity created with Firebase ID:', firebaseId);
+      onClose();
+    } catch (error) {
+      console.error('Error creating activity:', error);
+      setError(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderProgressBar = () => (
@@ -452,13 +470,17 @@ const AddActivityModal = ({ onClose }) => {
               ) : (
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
                 >
-                  Create Activity
+                  {isSubmitting ? 'Creating...' : 'Create Activity'}
                 </button>
               )}
             </div>
           </form>
+          {error && (
+            <div className="text-red-500 text-sm mt-2">{error}</div>
+          )}
         </div>
       </motion.div>
     </div>

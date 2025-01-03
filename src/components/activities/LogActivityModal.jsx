@@ -371,7 +371,15 @@ const LogActivityModal = ({ activity, date, onClose, onSubmit }) => {
       return;
     }
 
-    onSubmit(values);
+    // Clean up the values object to remove any empty or undefined values
+    const cleanValues = Object.entries(values).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    onSubmit(cleanValues);
   };
 
   const handleSkip = () => {

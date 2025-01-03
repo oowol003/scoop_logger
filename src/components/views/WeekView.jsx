@@ -81,22 +81,36 @@ const WeekView = ({ currentDate }) => {
 
     const dateKey = format(loggingDate, 'yyyy-MM-dd');
     try {
-      await updateActivity(loggingActivity.id, {
+      // Create a clean entry object without any empty values
+      const entry = {
+        completed: true,
+        timestamp: new Date().toISOString()
+      };
+
+      // Only add metrics if there are valid values
+      if (Object.keys(metricValues).length > 0) {
+        entry.metrics = metricValues;
+      }
+
+      // Get current entries or initialize empty object
+      const currentEntries = loggingActivity.entries || {};
+
+      // Create updated activity with new entry
+      const updatedActivity = {
         ...loggingActivity,
         entries: {
-          ...loggingActivity.entries,
-          [dateKey]: {
-            completed: true,
-            timestamp: new Date().toISOString(),
-            metrics: metricValues
-          }
+          ...currentEntries,
+          [dateKey]: entry
         }
-      });
+      };
+
+      console.log('Updating activity:', updatedActivity);
+      await updateActivity(loggingActivity.id, updatedActivity);
+      setLoggingActivity(null);
+      setLoggingDate(null);
     } catch (error) {
       console.error('Error updating activity:', error);
     }
-    setLoggingActivity(null);
-    setLoggingDate(null);
   };
 
   const navigateWeek = (direction) => {
