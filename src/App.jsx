@@ -32,8 +32,8 @@ function App() {
   };
 
   return (
-    <ActivityProvider>
-      <ViewOptionsProvider>
+    <ViewOptionsProvider>
+      <ActivityProvider>
         <Layout
           currentView={currentView}
           onViewChange={setCurrentView}
@@ -55,8 +55,8 @@ function App() {
         {showSettings && (
           <SettingsModal onClose={() => setShowSettings(false)} />
         )}
-      </ViewOptionsProvider>
-    </ActivityProvider>
+      </ActivityProvider>
+    </ViewOptionsProvider>
   );
 }
 

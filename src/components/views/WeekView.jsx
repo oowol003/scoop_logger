@@ -152,6 +152,10 @@ const WeekView = ({ currentDate }) => {
     return streak;
   };
 
+  const handleActivityClick = (activity, date) => {
+    toggleCompletion(activity.id, date);
+  };
+
   if (!activities || Object.keys(activities).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
@@ -213,7 +217,7 @@ const WeekView = ({ currentDate }) => {
               {Object.values(activities).map((activity) => (
                 <button
                   key={activity.id}
-                  onClick={() => toggleCompletion(activity.id, date)}
+                  onClick={() => handleActivityClick(activity, date)}
                   className={`
                     aspect-square rounded-lg font-mono text-sm
                     flex items-center justify-center transition-all
