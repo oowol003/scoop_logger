@@ -103,24 +103,24 @@ const WeekView = ({ currentDate }) => {
         }
       }
 
-      // Get current entries or initialize empty object
-      const currentEntries = loggingActivity.entries || {};
-
       // Create updated activity with new entry
       const updatedActivity = {
         ...loggingActivity,
         entries: {
-          ...currentEntries,
+          ...(loggingActivity.entries || {}),
           [dateKey]: entry
         }
       };
 
-      console.log('Updating activity:', updatedActivity);
-      await updateActivity(loggingActivity.id, updatedActivity);
+      // Close the modal immediately for better UX
       setLoggingActivity(null);
       setLoggingDate(null);
+
+      // Update in Firebase
+      await updateActivity(loggingActivity.id, updatedActivity);
     } catch (error) {
       console.error('Error updating activity:', error);
+      // Show error toast or notification here
     }
   };
 

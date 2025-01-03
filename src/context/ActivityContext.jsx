@@ -18,53 +18,24 @@ const ActivityContext = createContext();
 function activityReducer(state, action) {
   console.log('Reducer action:', action.type, action.payload);
   switch (action.type) {
-    case 'SET_LOGS':
-      return {
-        ...state,
-        logs: action.payload
-      };
-    case 'ADD_LOG':
-      return {
-        ...state,
-        logs: [...state.logs, action.payload]
-      };
-    case 'SET_ACTIVITIES': {
-      // Convert array to object with Firebase IDs as keys
-      const activitiesMap = action.payload.reduce((acc, activity) => {
-        acc[activity.id] = activity;
-        return acc;
-      }, {});
-      return {
-        ...state,
-        activities: activitiesMap
-      };
-    }
-    case 'UPDATE_ACTIVITY':
-      return {
-        ...state,
-        activities: {
-          ...state.activities,
-          [action.payload.id]: action.payload
-        }
-      };
-    case 'DELETE_ACTIVITY': {
-      const { [action.payload]: deleted, ...remaining } = state.activities;
-      return {
-        ...state,
-        activities: remaining
-      };
-    }
+    case 'SET_ACTIVITIES':
+      return action.payload;
+    case 'OPTIMISTIC_ADD_ACTIVITY':
+      return [...state, action.payload];
+    case 'OPTIMISTIC_UPDATE_ACTIVITY':
+      return state.map(activity => 
+        activity.id === action.payload.id ? action.payload : activity
+      );
+    case 'OPTIMISTIC_DELETE_ACTIVITY':
+      return state.filter(activity => activity.id !== action.payload);
     default:
       return state;
   }
 }
 
 export function ActivityProvider({ children }) {
-  const [state, dispatch] = useReducer(activityReducer, {
-    activities: {},
-    logs: []
-  });
-
+  const [activities, dispatch] = useReducer(activityReducer, []);
+  const [logs, dispatchLogs] = useReducer(logsReducer, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -77,24 +48,11 @@ export function ActivityProvider({ children }) {
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
         console.log('Activities snapshot received:', snapshot.size, 'documents');
-        const activities = snapshot.docs.map(doc => {
-          console.log('Document ID:', doc.id);
-          console.log('Document data:', doc.data());
-          return {
-            ...doc.data(),
-            id: doc.id // Ensure we use Firebase ID
-          };
-        });
+        const activities = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        }));
         console.log('Processed activities:', activities);
-        
-        // Convert array to object with Firebase IDs as keys
-        const activitiesMap = activities.reduce((acc, activity) => {
-          console.log('Adding activity to map:', activity.id);
-          acc[activity.id] = activity;
-          return acc;
-        }, {});
-        console.log('Final activities map:', activitiesMap);
-        
         dispatch({ type: 'SET_ACTIVITIES', payload: activities });
         setLoading(false);
       }, (error) => {
@@ -125,7 +83,7 @@ export function ActivityProvider({ children }) {
           id: doc.id
         }));
         console.log('Processed logs:', logs);
-        dispatch({ type: 'SET_LOGS', payload: logs });
+        dispatchLogs({ type: 'SET_LOGS', payload: logs });
       }, (error) => {
         console.error('Error in logs listener:', error);
         setError(error.message);
@@ -141,12 +99,21 @@ export function ActivityProvider({ children }) {
   const addActivity = async (activity) => {
     console.log('Adding activity:', activity);
     try {
+      // Create a temporary ID for optimistic update
+      const tempId = 'temp-' + Date.now();
+      const optimisticActivity = {
+        ...activity,
+        id: tempId,
+        createdAt: new Date().toISOString()
+      };
+
+      // Update UI immediately
+      dispatch({ type: 'OPTIMISTIC_ADD_ACTIVITY', payload: optimisticActivity });
+
+      // Add to Firebase
       const activitiesRef = collection(db, 'activities');
-      
-      // Create a clean version of the activity without any ID
       const { id: _, ...activityData } = activity;
       
-      // Add the activity to Firestore
       const docRef = await addDoc(activitiesRef, {
         ...activityData,
         createdAt: new Date().toISOString()
@@ -171,16 +138,8 @@ export function ActivityProvider({ children }) {
     console.log('Update data:', updates);
     
     try {
-      // Verify the document exists first
-      const activityRef = doc(db, 'activities', id);
-      const activityDoc = await getDoc(activityRef);
-      
-      if (!activityDoc.exists()) {
-        throw new Error(`Activity with ID ${id} does not exist`);
-      }
-      
-      // Remove any client-side generated IDs from updates
-      const { id: _, ...dirtyUpdates } = updates;
+      // Update UI immediately
+      dispatch({ type: 'OPTIMISTIC_UPDATE_ACTIVITY', payload: updates });
 
       // Clean up the updates object to remove any empty values recursively
       const cleanObject = (obj) => {
@@ -202,12 +161,24 @@ export function ActivityProvider({ children }) {
         }, {});
       };
 
+      // Remove any client-side generated IDs from updates
+      const { id: _, ...dirtyUpdates } = updates;
       const cleanUpdates = cleanObject(dirtyUpdates);
       console.log('Clean updates:', cleanUpdates);
 
+      // Update in Firebase
+      const activityRef = doc(db, 'activities', id);
       await updateDoc(activityRef, cleanUpdates);
       console.log('Activity updated successfully');
     } catch (err) {
+      // If Firebase update fails, revert the optimistic update
+      const activityRef = doc(db, 'activities', id);
+      const activityDoc = await getDoc(activityRef);
+      if (activityDoc.exists()) {
+        const currentData = { ...activityDoc.data(), id };
+        dispatch({ type: 'OPTIMISTIC_UPDATE_ACTIVITY', payload: currentData });
+      }
+      
       console.error('Error updating activity:', err);
       setError(err.message);
       throw err;
@@ -217,10 +188,22 @@ export function ActivityProvider({ children }) {
   const deleteActivity = async (id) => {
     console.log('Deleting activity with Firebase ID:', id);
     try {
+      // Update UI immediately
+      dispatch({ type: 'OPTIMISTIC_DELETE_ACTIVITY', payload: id });
+
+      // Delete from Firebase
       const activityRef = doc(db, 'activities', id);
       await deleteDoc(activityRef);
       console.log('Activity deleted successfully');
     } catch (err) {
+      // If Firebase delete fails, revert the optimistic update
+      const activityRef = doc(db, 'activities', id);
+      const activityDoc = await getDoc(activityRef);
+      if (activityDoc.exists()) {
+        const currentData = { ...activityDoc.data(), id };
+        dispatch({ type: 'OPTIMISTIC_UPDATE_ACTIVITY', payload: currentData });
+      }
+      
       console.error('Error deleting activity:', err);
       setError(err.message);
       throw err;
@@ -245,8 +228,8 @@ export function ActivityProvider({ children }) {
   };
 
   const contextValue = {
-    activities: state.activities,
-    logs: state.logs,
+    activities,
+    logs,
     loading,
     error,
     addActivity,
@@ -262,6 +245,16 @@ export function ActivityProvider({ children }) {
       {children}
     </ActivityContext.Provider>
   );
+}
+
+function logsReducer(state, action) {
+  console.log('Reducer action:', action.type, action.payload);
+  switch (action.type) {
+    case 'SET_LOGS':
+      return action.payload;
+    default:
+      return state;
+  }
 }
 
 export function useActivities() {
